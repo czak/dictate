@@ -6,6 +6,7 @@ edition = "2024"
 [dependencies]
 anyhow = "1"
 clap = { version = "4.6.7", features = ["derive", "env"] }
-ctrlc = "3"
+cpal = { version = "0.18.2", features = ["pipewire"] }
+ctrlc = { version = "3", features = ["termination"] }
 hound = "3"
 transcribe-cpp = "0.3.1"

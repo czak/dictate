@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-use crate::commands::{daemon, transcribe};
+use crate::commands::{daemon, record, transcribe};
 use crate::socket;
 
 /// Local speech-to-text using a GGUF model supported by transcribe.cpp.
@@ -30,6 +30,8 @@ pub enum Command {
     Daemon(daemon::Args),
     /// Ask a running daemon to transcribe a WAV file and print the text.
     Transcribe(transcribe::Args),
+    /// Record from the default microphone via PipeWire until Ctrl+C.
+    Record(record::Args),
 }
 
 /// Value parser shared by the commands: accepts only paths to existing files.

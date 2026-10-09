@@ -1,6 +1,6 @@
 # dictate
 
-Transcribes a WAV file with a local Parakeet model (GGUF format) using `transcribe-cpp`.
+Transcribes a WAV file with a local GGUF model supported by `transcribe-cpp`.
 
 ## Usage
 

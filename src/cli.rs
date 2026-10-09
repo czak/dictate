@@ -2,7 +2,7 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
-/// Local speech-to-text using a Parakeet model.
+/// Local speech-to-text using a GGUF model supported by transcribe.cpp.
 #[derive(Debug, Parser)]
 #[command(name = "dictate", version)]
 pub struct Cli {

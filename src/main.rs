@@ -54,14 +54,14 @@ fn load_wav(path: &Path) -> Result<Vec<f32>, String> {
     let mut reader =
         hound::WavReader::open(path).map_err(|err| format!("{}: {err}", path.display()))?;
     let spec = reader.spec();
-    if spec.channels != 1 {
-        return Err(format!("{}: must be mono", path.display()));
-    }
-    if spec.sample_rate != 16_000 {
-        return Err(format!("{}: must be 16 kHz", path.display()));
-    }
-    if spec.bits_per_sample != 16 {
-        return Err(format!("{}: must be 16-bit", path.display()));
+    if (spec.channels, spec.sample_rate, spec.bits_per_sample) != (1, 16_000, 16) {
+        return Err(format!(
+            "{}: expected mono 16 kHz 16-bit, got {} channel(s) {} Hz {}-bit",
+            path.display(),
+            spec.channels,
+            spec.sample_rate,
+            spec.bits_per_sample,
+        ));
     }
     reader
         .samples::<i16>()

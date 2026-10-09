@@ -4,17 +4,22 @@ Transcribes a WAV file with a local GGUF model supported by `transcribe-cpp`.
 
 ## Usage
 
-```sh
-cargo run -- transcribe --model <model.gguf> <audio.wav>
-```
-
-Example:
+Start the daemon once; it loads the model and serves requests on a Unix socket
+(`$XDG_RUNTIME_DIR/dictate.sock`, or `/tmp/dictate.sock`; override with `--socket` or `DICTATE_SOCKET`):
 
 ```sh
-cargo run -- transcribe --model ~/.local/share/models/parakeet-unified-en-0.6b-Q8_0.gguf sample.wav
+cargo run -- daemon --model <model.gguf>
 ```
 
-Run `dictate --help` or `dictate transcribe --help` for all options.
+Then transcribe through it. The text is printed to stdout:
+
+```sh
+cargo run -- transcribe sample.wav
+```
+
+`--model` can also be set with `DICTATE_MODEL`. Stop the daemon with Ctrl+C.
+
+Run `dictate --help` or `dictate <command> --help` for all options.
 
 ## Recording a sample with PipeWire
 

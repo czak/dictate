@@ -1,6 +1,7 @@
 mod audio;
 mod cli;
 mod commands;
+mod socket;
 
 use std::process::ExitCode;
 
@@ -11,15 +12,13 @@ use cli::{Cli, Command};
 fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match &cli.command {
-        Command::Transcribe(args) => commands::transcribe::run(args),
+        Command::Daemon(args) => commands::daemon::run(&args.model, &cli.socket),
+        Command::Transcribe(args) => commands::transcribe::run(&cli.socket, &args.audio),
     };
     match result {
-        Ok(output) => {
-            println!("{output}");
-            ExitCode::SUCCESS
-        }
+        Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{err}");
+            eprintln!("{err:#}");
             ExitCode::FAILURE
         }
     }

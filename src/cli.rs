@@ -2,32 +2,38 @@ use std::path::PathBuf;
 
 use clap::{Parser, Subcommand};
 
+use crate::commands::{daemon, transcribe};
+use crate::socket;
+
 /// Local speech-to-text using a GGUF model supported by transcribe.cpp.
 #[derive(Debug, Parser)]
 #[command(name = "dictate", version)]
 pub struct Cli {
+    /// Unix socket used by the daemon and the client.
+    #[arg(
+        short,
+        long,
+        global = true,
+        env = "DICTATE_SOCKET",
+        value_name = "PATH",
+        default_value_os_t = socket::default_path()
+    )]
+    pub socket: PathBuf,
+
     #[command(subcommand)]
     pub command: Command,
 }
 
 #[derive(Debug, Subcommand)]
 pub enum Command {
-    /// Transcribe a WAV file and print the text to stdout.
-    Transcribe(TranscribeArgs),
+    /// Load the model and serve transcription requests on the socket.
+    Daemon(daemon::Args),
+    /// Ask a running daemon to transcribe a WAV file and print the text.
+    Transcribe(transcribe::Args),
 }
 
-#[derive(Debug, clap::Args)]
-pub struct TranscribeArgs {
-    /// Path to the GGUF model file.
-    #[arg(short, long, value_name = "PATH", value_parser = existing_file)]
-    pub model: PathBuf,
-
-    /// Mono, 16 kHz, 16-bit WAV file to transcribe.
-    #[arg(value_name = "AUDIO", value_parser = existing_file)]
-    pub audio: PathBuf,
-}
-
-fn existing_file(raw: &str) -> Result<PathBuf, String> {
+/// Value parser shared by the commands: accepts only paths to existing files.
+pub fn existing_file(raw: &str) -> Result<PathBuf, String> {
     let path = PathBuf::from(raw);
     if path.is_file() {
         Ok(path)

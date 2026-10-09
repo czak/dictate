@@ -1,8 +1,9 @@
 use std::env;
 use std::path::PathBuf;
 
-/// Protocol: the client writes one line holding an absolute WAV path. The
-/// daemon replies with `OK\n<text>` or `ERR\n<message>`, then closes.
+/// Protocol: the client writes one line `<language>\t<absolute WAV path>`, where
+/// the language is empty for autodetect. The daemon replies with
+/// `OK\n<text>` or `ERR\n<message>`, then closes.
 pub const OK: &str = "OK";
 pub const ERR: &str = "ERR";
 

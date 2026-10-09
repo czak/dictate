@@ -17,6 +17,13 @@ Then transcribe through it. The text is printed to stdout:
 cargo run -- transcribe sample.wav
 ```
 
+For multilingual models, pick the language per request with `-l`/`--language`
+(e.g. `en`, `pl`). Omit it to autodetect. Models without a language list ignore it.
+
+```sh
+cargo run -- transcribe -l pl sample.wav
+```
+
 `--model` can also be set with `DICTATE_MODEL`. Stop the daemon with Ctrl+C.
 
 Run `dictate --help` or `dictate <command> --help` for all options.

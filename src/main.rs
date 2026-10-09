@@ -13,7 +13,7 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match &cli.command {
         Command::Daemon(args) => commands::daemon::run(&args.model, &cli.socket),
-        Command::Transcribe(args) => commands::transcribe::run(&cli.socket, &args.audio),
+        Command::Transcribe(args) => commands::transcribe::run(&cli.socket, &args.audio, args.language.as_deref()),
         Command::Record(args) => commands::record::run(&args.output),
     };
     match result {

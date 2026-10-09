@@ -14,10 +14,19 @@ pub struct Args {
     /// Mono, 16 kHz, 16-bit WAV file to transcribe.
     #[arg(value_name = "AUDIO", value_parser = existing_file)]
     pub audio: PathBuf,
+
+    /// Source language code (e.g. `en`, `pl`). Omit to let the model autodetect.
+    /// Ignored by models that take no language.
+    #[arg(short, long, value_name = "CODE")]
+    pub language: Option<String>,
 }
 
-pub fn run(socket: &Path, audio: &Path) -> Result<()> {
+pub fn run(socket: &Path, audio: &Path, language: Option<&str>) -> Result<()> {
     let audio = fs::canonicalize(audio).with_context(|| audio.display().to_string())?;
+    let language = language.unwrap_or("");
+    if language.contains(['\t', '\n', '\r']) {
+        bail!("invalid language code: {language:?}");
+    }
 
     let mut stream = UnixStream::connect(socket).with_context(|| {
         format!(
@@ -25,7 +34,7 @@ pub fn run(socket: &Path, audio: &Path) -> Result<()> {
             socket.display()
         )
     })?;
-    writeln!(stream, "{}", audio.display())?;
+    writeln!(stream, "{language}\t{}", audio.display())?;
 
     let mut reply = String::new();
     stream.read_to_string(&mut reply)?;

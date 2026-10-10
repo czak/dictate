@@ -5,19 +5,10 @@ use std::path::{Path, PathBuf};
 use std::process;
 
 use anyhow::{Context, Result, bail};
-use clap::Args as ClapArgs;
 use transcribe_cpp::{Model, RunOptions, Session};
 
-use crate::audio::load_wav;
-use crate::cli::existing_file;
 use crate::socket::{ERR, OK};
-
-#[derive(Debug, ClapArgs)]
-pub struct Args {
-    /// Path to the GGUF model file.
-    #[arg(short, long, env = "DICTATE_MODEL", value_name = "PATH", value_parser = existing_file)]
-    pub model: PathBuf,
-}
+use crate::wav;
 
 pub fn run(model_path: &Path, socket: &Path) -> Result<()> {
     let listener = bind(socket)?;
@@ -86,7 +77,7 @@ fn transcribe(
     audio: &Path,
 ) -> Result<String> {
     let language = resolve_language(languages, language)?;
-    let pcm = load_wav(audio)?;
+    let pcm = wav::load(audio)?;
     let options = RunOptions {
         language,
         ..RunOptions::default()

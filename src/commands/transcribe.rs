@@ -1,25 +1,11 @@
 use std::fs;
 use std::io::{Read, Write};
 use std::os::unix::net::UnixStream;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 use anyhow::{Context, Result, bail};
-use clap::Args as ClapArgs;
 
-use crate::cli::existing_file;
 use crate::socket::{ERR, OK};
-
-#[derive(Debug, ClapArgs)]
-pub struct Args {
-    /// Mono, 16 kHz, 16-bit WAV file to transcribe.
-    #[arg(value_name = "AUDIO", value_parser = existing_file)]
-    pub audio: PathBuf,
-
-    /// Source language code (e.g. `en`, `pl`). Omit to let the model autodetect.
-    /// Ignored by models that take no language.
-    #[arg(short, long, value_name = "CODE")]
-    pub language: Option<String>,
-}
 
 pub fn run(socket: &Path, audio: &Path, language: Option<&str>) -> Result<()> {
     let audio = fs::canonicalize(audio).with_context(|| audio.display().to_string())?;

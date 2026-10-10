@@ -12,15 +12,16 @@ pub const SPEC: hound::WavSpec = hound::WavSpec {
 
 /// Loads a mono, 16 kHz, 32-bit float WAV file as f32 samples.
 pub fn load(path: &Path) -> Result<Vec<f32>> {
-    let mut reader = hound::WavReader::open(path).with_context(|| path.display().to_string())?;
+    let context = || format!("cannot read {}", path.display());
+    let mut reader = hound::WavReader::open(path).with_context(context)?;
     let spec = reader.spec();
     if spec != SPEC {
-        bail!("{}: expected {SPEC:?}, got {spec:?}", path.display(),);
+        bail!("{}: expected {SPEC:?}, got {spec:?}", path.display());
     }
     reader
         .samples::<f32>()
         .collect::<Result<Vec<_>, hound::Error>>()
-        .with_context(|| path.display().to_string())
+        .with_context(context)
 }
 
 /// Writes mono 16 kHz f32 samples as a 32-bit float WAV file, overwriting any existing file.

@@ -21,14 +21,9 @@ pub enum Command {
 
     /// Ask a running daemon to transcribe a WAV file and print the text.
     Transcribe {
-        /// Mono, 16 kHz, 16-bit WAV file to transcribe.
+        /// Mono, 16 kHz, 32-bit float WAV file to transcribe.
         #[arg(value_parser = existing_file)]
         audio: PathBuf,
-
-        /// Source language code (e.g. `en`, `pl`). Omit to let the model autodetect.
-        /// Ignored by models that take no language.
-        #[arg(short, long)]
-        language: Option<String>,
     },
 
     /// Record from the default microphone via PipeWire until Ctrl+C.

@@ -1,3 +1,3 @@
 pub mod daemon;
-pub mod record;
-pub mod transcribe;
+pub mod start;
+pub mod stop;

@@ -1,4 +1,4 @@
-//! Wire protocol between `dictate transcribe` (client) and `dictate daemon` (server).
+//! Wire protocol between `dictate` clients and `dictate daemon` (server).
 //!
 //! Each message is one line of JSON. A client sends a [`Request`] and the daemon
 //! answers with a [`Reply`], then closes the connection.
@@ -13,30 +13,50 @@ use anyhow::{Context, Result, bail};
 use serde::de::DeserializeOwned;
 use serde::{Deserialize, Serialize};
 
-/// A transcription job for the daemon.
+/// A job for the daemon.
 #[derive(Debug, Serialize, Deserialize)]
-pub struct Request {
-    pub wav_path: PathBuf,
+pub enum Request {
+    /// Begin recording from the default microphone.
+    Start,
+    /// End the recording, transcribe it, and reply with the text.
+    Stop,
 }
 
 /// The daemon's answer to a [`Request`].
 #[derive(Debug, Serialize, Deserialize)]
 pub enum Reply {
+    /// The request succeeded and has no output.
+    Ok,
     Text(String),
     Error(String),
 }
 
 /// `$XDG_RUNTIME_DIR/dictate.sock`.
-pub fn path() -> Result<PathBuf> {
-    match env::var_os("XDG_RUNTIME_DIR") {
-        Some(dir) if !dir.is_empty() => Ok(PathBuf::from(dir).join("dictate.sock")),
-        _ => bail!("XDG_RUNTIME_DIR must be set"),
+///
+/// Panics if `XDG_RUNTIME_DIR` is unset.
+pub fn path() -> PathBuf {
+    let dir = env::var_os("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
+    PathBuf::from(dir).join("dictate.sock")
+}
+
+/// Sends `request` and returns the transcript from a [`Reply::Text`].
+pub fn text(request: &Request) -> Result<String> {
+    match exchange(request)? {
+        Reply::Text(text) => Ok(text),
+        _ => bail!("unexpected reply from daemon"),
     }
 }
 
-/// Sends `request` to the running daemon and returns the transcript.
-pub fn transcribe(request: &Request) -> Result<String> {
-    let socket = path()?;
+/// Sends `request` and expects a bare acknowledgement.
+pub fn ack(request: &Request) -> Result<()> {
+    match exchange(request)? {
+        Reply::Ok => Ok(()),
+        _ => bail!("unexpected reply from daemon"),
+    }
+}
+
+fn exchange(request: &Request) -> Result<Reply> {
+    let socket = path();
     let stream = UnixStream::connect(&socket).with_context(|| {
         format!(
             "cannot reach daemon at {}; start it with `dictate daemon --model <model.gguf>`",
@@ -47,14 +67,14 @@ pub fn transcribe(request: &Request) -> Result<String> {
     let reply: Reply =
         read_message(&stream)?.context("daemon closed the connection without replying")?;
     match reply {
-        Reply::Text(text) => Ok(text),
         Reply::Error(message) => bail!("{message}"),
+        reply => Ok(reply),
     }
 }
 
 /// Binds the socket, refusing if a live daemon owns it and replacing a stale socket file.
 pub fn bind() -> Result<UnixListener> {
-    let path = path()?;
+    let path = path();
     if path.exists() {
         if UnixStream::connect(&path).is_ok() {
             bail!("{}: daemon already running", path.display());

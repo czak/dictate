@@ -1,6 +1,7 @@
 # dictate
 
-Transcribes a WAV file with a local GGUF model supported by `transcribe-cpp`.
+Records from the default PipeWire input and transcribes it with a local GGUF
+model supported by `transcribe-cpp`.
 
 ## Usage
 
@@ -11,28 +12,33 @@ at `$XDG_RUNTIME_DIR/dictate.sock`:
 cargo run -- daemon --model ~/.local/share/models/parakeet-ultra-Q8_0.gguf
 ```
 
-Then transcribe through it. The text is printed to stdout:
-
-```sh
-cargo run -- transcribe sample.wav
-```
-
-Stop the daemon with Ctrl+C.
+Stop the daemon with Ctrl+C. Interrupting it while recording discards the
+recording.
 
 Run `dictate --help` or `dictate <command> --help` for all options.
 
-## Recording a sample
+## Dictating
 
-`dictate record` captures from the default PipeWire input until Ctrl+C and writes a WAV file:
-
-```sh
-cargo run -- record sample.wav
-```
-
-Or use `pw-record`, which must write 32-bit float, since that is the only format `transcribe` accepts:
+With the daemon running, `start` begins recording from the default microphone
+and returns immediately. `stop` ends the recording, transcribes it, and prints
+the text to stdout:
 
 ```sh
-pw-record --channels 1 --rate 16000 --format f32 sample.wav
+dictate start
+# ...speak...
+dictate stop
 ```
 
-Press Ctrl+C to stop. The file must be mono, 16 kHz, 32-bit float.
+`start` fails if a recording is already in progress, and `stop` fails if none
+is. Audio is held in the daemon's memory until `stop`.
+
+`start` does not launch the daemon yet; run `dictate daemon` first.
+
+## Checks
+
+```sh
+scripts/check.sh
+```
+
+Runs `rustfmt`, `clippy`, the build, and the unit tests. Transcription is not
+covered by the checks; verify it by hand with `dictate start` and `dictate stop`.

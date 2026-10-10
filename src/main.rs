@@ -1,7 +1,8 @@
+mod capture;
 mod cli;
 mod commands;
+mod recorder;
 mod socket;
-mod wav;
 
 use std::process::ExitCode;
 
@@ -13,8 +14,8 @@ fn main() -> ExitCode {
     let cli = Cli::parse();
     let result = match &cli.command {
         Command::Daemon { model } => commands::daemon::run(model),
-        Command::Transcribe { audio } => commands::transcribe::run(audio),
-        Command::Record { output } => commands::record::run(output),
+        Command::Start => commands::start::run(),
+        Command::Stop => commands::stop::run(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

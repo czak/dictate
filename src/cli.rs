@@ -19,18 +19,11 @@ pub enum Command {
         model: PathBuf,
     },
 
-    /// Ask a running daemon to transcribe a WAV file and print the text.
-    Transcribe {
-        /// Mono, 16 kHz, 32-bit float WAV file to transcribe.
-        #[arg(value_parser = existing_file)]
-        audio: PathBuf,
-    },
+    /// Ask a running daemon to start recording from the default microphone.
+    Start,
 
-    /// Record from the default microphone via PipeWire until Ctrl+C.
-    Record {
-        /// Where to write the recording. Overwritten if it exists.
-        output: PathBuf,
-    },
+    /// Ask a running daemon to stop recording, transcribe it, and print the text.
+    Stop,
 }
 
 /// Value parser shared by the commands: accepts only paths to existing files.

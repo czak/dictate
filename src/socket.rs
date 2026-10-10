@@ -18,7 +18,7 @@ use serde::{Deserialize, Serialize};
 pub enum Request {
     /// Begin recording from the default microphone.
     Start,
-    /// End the recording, transcribe it, and reply with the text.
+    /// End the recording, transcribe it, and type the text into the focused window.
     Stop,
 }
 
@@ -27,7 +27,6 @@ pub enum Request {
 pub enum Reply {
     /// The request succeeded and has no output.
     Ok,
-    Text(String),
     Error(String),
 }
 
@@ -37,14 +36,6 @@ pub enum Reply {
 pub fn path() -> PathBuf {
     let dir = env::var_os("XDG_RUNTIME_DIR").expect("XDG_RUNTIME_DIR must be set");
     PathBuf::from(dir).join("dictate.sock")
-}
-
-/// Sends `request` and returns the transcript from a [`Reply::Text`].
-pub fn text(request: &Request) -> Result<String> {
-    match exchange(request)? {
-        Reply::Text(text) => Ok(text),
-        _ => bail!("unexpected reply from daemon"),
-    }
 }
 
 /// Sends `request` and expects a bare acknowledgement.

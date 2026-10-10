@@ -22,7 +22,8 @@ pub enum Command {
     /// Ask a running daemon to start recording from the default microphone.
     Start,
 
-    /// Ask a running daemon to stop recording, transcribe it, and print the text.
+    /// Ask a running daemon to stop recording, transcribe it, and type the text
+    /// into the focused window.
     Stop,
 }
 

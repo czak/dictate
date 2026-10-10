@@ -2,17 +2,20 @@ use std::fs;
 use std::path::Path;
 use std::process;
 
-use anyhow::{Context, Result};
+use anyhow::{Context, Result, anyhow};
 use transcribe_cpp::{Model, RunOptions, Session};
 
 use crate::capture::Capture;
+use crate::keyboard::VirtualKeyboard;
 use crate::recorder::Recorder;
 use crate::socket::{self, Reply, Request};
 
-/// Loads the model, then serves requests until interrupted.
+/// Connects the virtual keyboard, loads the model, then serves requests until
+/// interrupted.
 ///
 /// Interrupting while recording discards the recording.
 pub fn run(model_path: &Path) -> Result<()> {
+    let mut keyboard = VirtualKeyboard::connect()?;
     let listener = socket::bind()?;
     let mut session = Model::load(model_path)?.session()?;
     let mut recorder = Recorder::default();
@@ -28,7 +31,7 @@ pub fn run(model_path: &Path) -> Result<()> {
 
     eprintln!("listening on {}", socket_path.display());
     socket::serve(&listener, |request| {
-        match handle(&mut session, &mut recorder, request) {
+        match handle(&mut session, &mut recorder, &mut keyboard, request) {
             Ok(reply) => reply,
             Err(err) => Reply::Error(format!("{err:#}")),
         }
@@ -39,6 +42,7 @@ pub fn run(model_path: &Path) -> Result<()> {
 fn handle(
     session: &mut Session,
     recorder: &mut Recorder<Capture>,
+    keyboard: &mut VirtualKeyboard,
     request: Request,
 ) -> Result<Reply> {
     match request {
@@ -50,7 +54,15 @@ fn handle(
         }
         Request::Stop => {
             let samples = recorder.stop()?.finish();
-            Ok(Reply::Text(transcribe(session, &samples)?))
+            let text = transcribe(session, &samples)?;
+            // Keep the transcript in the error so it is not lost if typing fails.
+            let skipped = keyboard
+                .type_text(&text)
+                .map_err(|err| anyhow!("cannot type transcript ({err:#}): {text}"))?;
+            if skipped > 0 {
+                eprintln!("skipped {skipped} characters that have no key");
+            }
+            Ok(Reply::Ok)
         }
     }
 }

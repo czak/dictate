@@ -8,6 +8,9 @@ anyhow = "1"
 clap = { version = "4.6.7", features = ["derive", "env"] }
 cpal = { version = "0.18.2", features = ["pipewire"] }
 ctrlc = { version = "3", features = ["termination"] }
+rustix = { version = "1.1.5", features = ["fs"] }
 serde = { version = "1.0.229", features = ["derive"] }
 serde_json = "1.0.151"
 transcribe-cpp = "0.3.1"
+wayland-client = "0.31.15"
+wayland-protocols-misc = { version = "0.3.12", features = ["client"] }

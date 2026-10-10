@@ -1,6 +1,7 @@
 mod capture;
 mod cli;
 mod commands;
+mod keyboard;
 mod recorder;
 mod socket;
 

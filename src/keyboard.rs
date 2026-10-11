@@ -1,24 +1,16 @@
-//! Types text into the focused window through the `zwp_virtual_keyboard_v1`
-//! Wayland protocol.
+//! Types text into the focused window through a [`VirtualKeyboard`].
 //!
-//! The virtual keyboard is created once and kept for the daemon's lifetime. It
-//! is driven by a keymap that assigns one keycode per character, so typing does
-//! not depend on the seat's layout. The keymap starts with a fixed set of
-//! characters, which covers most dictation. Characters outside it trigger a
-//! keymap upload for that utterance.
+//! The keyboard is driven by a keymap that assigns one keycode per character,
+//! so typing does not depend on the seat's layout. The keymap starts with a
+//! fixed set of characters, which covers most dictation. Characters outside it
+//! trigger a keymap upload for that utterance.
 
-use std::fs::File;
-use std::io::Write;
-use std::os::fd::AsFd;
 use std::thread;
-use std::time::{Duration, Instant};
+use std::time::Duration;
 
-use anyhow::{Context, Result, bail};
-use rustix::fs::{MemfdFlags, memfd_create};
-use wayland_client::protocol::{wl_keyboard, wl_registry, wl_seat};
-use wayland_client::{Connection, Dispatch, EventQueue, Proxy, QueueHandle, delegate_noop};
-use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::zwp_virtual_keyboard_manager_v1::ZwpVirtualKeyboardManagerV1;
-use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1;
+use anyhow::Result;
+
+use crate::wayland::{VirtualKeyboard, Wayland};
 
 /// Pause after a keymap upload so the focused client can apply it. Without it
 /// the client drops the first key.
@@ -93,97 +85,22 @@ fn is_typable(c: &char) -> bool {
     !c.is_control()
 }
 
-#[derive(Default)]
-struct State {
-    seat: Option<wl_seat::WlSeat>,
-    manager: Option<ZwpVirtualKeyboardManagerV1>,
-}
-
-impl Dispatch<wl_registry::WlRegistry, ()> for State {
-    fn event(
-        state: &mut Self,
-        registry: &wl_registry::WlRegistry,
-        event: wl_registry::Event,
-        _: &(),
-        _: &Connection,
-        qh: &QueueHandle<Self>,
-    ) {
-        if let wl_registry::Event::Global {
-            name,
-            interface,
-            version,
-        } = event
-        {
-            match interface.as_str() {
-                "wl_seat" if state.seat.is_none() => {
-                    let version = version.min(wl_seat::WlSeat::interface().version);
-                    state.seat = Some(registry.bind(name, version, qh, ()));
-                }
-                "zwp_virtual_keyboard_manager_v1" => {
-                    state.manager = Some(registry.bind(name, 1, qh, ()));
-                }
-                _ => {}
-            }
-        }
-    }
-}
-
-impl Dispatch<wl_seat::WlSeat, ()> for State {
-    fn event(
-        _: &mut Self,
-        _: &wl_seat::WlSeat,
-        _: wl_seat::Event,
-        _: &(),
-        _: &Connection,
-        _: &QueueHandle<Self>,
-    ) {
-    }
-}
-
-delegate_noop!(State: ignore ZwpVirtualKeyboardManagerV1);
-delegate_noop!(State: ignore ZwpVirtualKeyboardV1);
-
-/// A virtual keyboard attached to the first seat, kept for the daemon's lifetime.
-pub struct VirtualKeyboard {
-    /// Kept alive for as long as the proxies above are in use.
-    _conn: Connection,
-    queue: EventQueue<State>,
-    state: State,
-    keyboard: ZwpVirtualKeyboardV1,
+/// Types text into the focused window using the current keymap.
+pub struct Typist {
+    keyboard: VirtualKeyboard,
     /// The keymap currently uploaded to the compositor.
     layout: Vec<char>,
-    start: Instant,
 }
 
-impl VirtualKeyboard {
-    /// Connects to the Wayland display, creates the virtual keyboard, and uploads
-    /// the base keymap. Fails if the compositor lacks the protocol or a seat.
-    pub fn connect() -> Result<Self> {
-        let conn = Connection::connect_to_env().context("cannot connect to Wayland display")?;
-        let mut queue = conn.new_event_queue();
-        let qh = queue.handle();
-        let _registry = conn.display().get_registry(&qh, ());
-        let mut state = State::default();
-        queue.roundtrip(&mut state)?;
-
-        let Some(manager) = state.manager.clone() else {
-            bail!("compositor does not advertise zwp_virtual_keyboard_manager_v1");
-        };
-        let Some(seat) = state.seat.clone() else {
-            bail!("no wl_seat available");
-        };
-        let keyboard = manager.create_virtual_keyboard(&seat, &qh, ());
-
-        let mut vk = Self {
-            _conn: conn,
-            queue,
-            state,
-            keyboard,
+impl Typist {
+    /// Creates the virtual keyboard and uploads the base keymap.
+    pub fn new(wl: &Wayland) -> Result<Self> {
+        let mut typist = Self {
+            keyboard: VirtualKeyboard::new(wl)?,
             layout: Vec::new(),
-            start: Instant::now(),
         };
-        vk.upload(base_layout())?;
-        Ok(vk)
+        typist.upload(base_layout())?;
+        Ok(typist)
     }
 
     /// Types `text` into the focused window and returns how many characters had
@@ -203,45 +120,20 @@ impl VirtualKeyboard {
                 skipped += 1;
                 continue;
             };
-            let code = index as u32 + 1;
-            let time = self.start.elapsed().as_millis() as u32;
-            self.keyboard
-                .key(time, code, wl_keyboard::KeyState::Pressed.into());
-            self.keyboard
-                .key(time, code, wl_keyboard::KeyState::Released.into());
+            self.keyboard.tap(index as u32 + 1);
             typed += 1;
             if typed % ROUNDTRIP_EVERY == 0 {
-                self.sync()?;
+                self.keyboard.sync()?;
             }
         }
-        self.sync()?;
+        self.keyboard.sync()?;
         Ok(skipped)
     }
 
-    /// Uploads `layout` as the compositor's keymap, then waits for the client to
-    /// apply it.
     fn upload(&mut self, layout: Vec<char>) -> Result<()> {
-        let mut bytes = keymap_text(&layout).into_bytes();
-        bytes.push(0);
-        let fd = memfd_create("dictate-keymap", MemfdFlags::CLOEXEC)?;
-        let mut file = File::from(fd);
-        file.write_all(&bytes)?;
-
-        self.keyboard.keymap(
-            wl_keyboard::KeymapFormat::XkbV1.into(),
-            file.as_fd(),
-            bytes.len() as u32,
-        );
+        self.keyboard.set_keymap(&keymap_text(&layout))?;
         self.layout = layout;
-        // Keep `file` open until the request has been flushed.
-        self.sync()?;
-        drop(file);
         thread::sleep(SETTLE);
-        Ok(())
-    }
-
-    fn sync(&mut self) -> Result<()> {
-        self.queue.roundtrip(&mut self.state)?;
         Ok(())
     }
 }
@@ -298,8 +190,9 @@ mod tests {
     fn types_into_focused_window() {
         let text = std::env::var("DICTATE_TEST_TEXT")
             .unwrap_or_else(|_| "Zażółć gęślą jaźń 123".to_string());
-        let mut keyboard = super::VirtualKeyboard::connect().unwrap();
-        assert_eq!(keyboard.type_text(&text).unwrap(), 0);
+        let wl = crate::wayland::Wayland::connect().unwrap();
+        let mut typist = super::Typist::new(&wl).unwrap();
+        assert_eq!(typist.type_text(&text).unwrap(), 0);
     }
 
     #[test]

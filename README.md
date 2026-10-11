@@ -9,6 +9,8 @@ window through the Wayland virtual keyboard protocol.
 - A Wayland compositor that offers `zwp_virtual_keyboard_manager_v1`
   (Sway and other wlroots compositors do).
 - Only the first `wl_seat` is used. Multi-seat setups are not supported.
+- For the recording indicator, a compositor that offers `zwlr_layer_shell_v1`.
+  Without it the daemon still works but shows no indicator.
 
 ## Usage
 
@@ -41,6 +43,9 @@ transcript is included in the error on stderr.
 
 `start` fails if a recording is already in progress, and `stop` fails if none
 is. Audio is held in the daemon's memory until `stop`.
+
+While recording, a small red dot appears in the top-right corner. It is
+drawn on a layer surface, so it does not take focus or receive clicks.
 
 `start` does not launch the daemon yet; run `dictate daemon` first.
 

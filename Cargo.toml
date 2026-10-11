@@ -14,3 +14,4 @@ serde_json = "1.0.151"
 transcribe-cpp = "0.3.1"
 wayland-client = "0.31.15"
 wayland-protocols-misc = { version = "0.3.12", features = ["client"] }
+wayland-protocols-wlr = { version = "0.3.12", features = ["client"] }

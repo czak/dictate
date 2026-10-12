@@ -4,21 +4,25 @@ pub const USAGE: &str = "\
 Local speech-to-text using a GGUF model supported by transcribe.cpp.
 
 Usage:
-  dictate daemon <MODEL>   Load the model and serve requests on the socket
-  dictate start            Start recording from the default microphone
-  dictate stop             Stop recording, transcribe, and type the text";
+  dictate serve <MODEL>         Load the model and serve requests on the socket
+  dictate ctl record            Start recording from the default microphone
+  dictate ctl transcribe        Stop recording, transcribe, and type the text";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
-    /// Load the model and serve transcription requests on the socket.
-    Daemon { model: PathBuf },
+    /// Load the model and serve requests on the socket.
+    Serve { model: PathBuf },
 
-    /// Ask a running daemon to start recording from the default microphone.
-    Start,
+    /// Send an action to a running server.
+    Ctl(Action),
+}
 
-    /// Ask a running daemon to stop recording, transcribe it, and type the text
-    /// into the focused window.
-    Stop,
+#[derive(Debug, PartialEq, Eq)]
+pub enum Action {
+    /// Start recording from the default microphone.
+    Record,
+    /// Stop recording, transcribe it, and type the text.
+    Transcribe,
 }
 
 /// Parses the arguments after the program name. On error, returns a message
@@ -33,20 +37,28 @@ where
     };
 
     let command = match name.as_str() {
-        "daemon" => {
-            let model = args.next().ok_or("daemon: missing <MODEL>")?;
-            Command::Daemon {
+        "serve" => {
+            let model = args.next().ok_or("serve: missing <MODEL>")?;
+            Command::Serve {
                 model: existing_file(model)?,
             }
         }
-        "start" => Command::Start,
-        "stop" => Command::Stop,
+        "ctl" => Command::Ctl(ctl_action(args.next())?),
         _ => return Err(format!("unknown command: {name}")),
     };
 
-    match args.next() {
-        Some(extra) => Err(format!("unexpected argument: {extra}")),
-        None => Ok(command),
+    if let Some(extra) = args.next() {
+        return Err(format!("unexpected argument: {extra}"));
+    }
+
+    Ok(command)
+}
+
+fn ctl_action(action: Option<String>) -> Result<Action, String> {
+    match action.as_deref() {
+        Some("record") => Ok(Action::Record),
+        Some("transcribe") => Ok(Action::Transcribe),
+        _ => Err("ctl: expected record or transcribe".into()),
     }
 }
 
@@ -63,7 +75,7 @@ fn existing_file(raw: String) -> Result<PathBuf, String> {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{Command, parse};
+    use super::{Action, Command, parse};
 
     fn run(args: &[&str]) -> Result<Command, String> {
         parse(args.iter().map(|arg| arg.to_string()))
@@ -77,17 +89,20 @@ mod tests {
     }
 
     #[test]
-    fn start_and_stop() {
-        assert_eq!(run(&["start"]), Ok(Command::Start));
-        assert_eq!(run(&["stop"]), Ok(Command::Stop));
+    fn ctl_record_and_transcribe() {
+        assert_eq!(run(&["ctl", "record"]), Ok(Command::Ctl(Action::Record)));
+        assert_eq!(
+            run(&["ctl", "transcribe"]),
+            Ok(Command::Ctl(Action::Transcribe))
+        );
     }
 
     #[test]
-    fn daemon_takes_existing_model_file() {
+    fn serve_takes_existing_model_file() {
         let model = model_path();
         assert_eq!(
-            run(&["daemon", &model]),
-            Ok(Command::Daemon {
+            run(&["serve", &model]),
+            Ok(Command::Serve {
                 model: PathBuf::from(&model)
             })
         );
@@ -105,14 +120,26 @@ mod tests {
     }
 
     #[test]
-    fn daemon_without_model_is_an_error() {
-        assert_eq!(run(&["daemon"]), Err("daemon: missing <MODEL>".into()));
+    fn ctl_without_known_action_is_an_error() {
+        assert_eq!(
+            run(&["ctl"]),
+            Err("ctl: expected record or transcribe".into())
+        );
+        assert_eq!(
+            run(&["ctl", "start"]),
+            Err("ctl: expected record or transcribe".into())
+        );
     }
 
     #[test]
-    fn daemon_model_must_exist() {
+    fn serve_without_model_is_an_error() {
+        assert_eq!(run(&["serve"]), Err("serve: missing <MODEL>".into()));
+    }
+
+    #[test]
+    fn serve_model_must_exist() {
         assert_eq!(
-            run(&["daemon", "/nonexistent/model.gguf"]),
+            run(&["serve", "/nonexistent/model.gguf"]),
             Err("/nonexistent/model.gguf: not a file".into())
         );
     }
@@ -121,13 +148,16 @@ mod tests {
     fn extra_arguments_are_rejected() {
         let model = model_path();
         assert_eq!(
-            run(&["start", "now"]),
+            run(&["ctl", "record", "now"]),
             Err("unexpected argument: now".into())
         );
         assert_eq!(
-            run(&["daemon", &model, "extra"]),
+            run(&["serve", &model, "extra"]),
             Err("unexpected argument: extra".into())
         );
-        assert_eq!(run(&["stop", "-h"]), Err("unexpected argument: -h".into()));
+        assert_eq!(
+            run(&["ctl", "transcribe", "-h"]),
+            Err("unexpected argument: -h".into())
+        );
     }
 }

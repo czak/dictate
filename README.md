@@ -10,61 +10,61 @@ window through the Wayland virtual keyboard protocol.
   (Sway and other wlroots compositors do).
 - Only the first `wl_seat` is used. Multi-seat setups are not supported.
 - For the recording indicator, a compositor that offers `zwlr_layer_shell_v1`.
-  Without it the daemon still works but shows no indicator.
+  Without it the server still works but shows no indicator.
 
 ## Usage
 
-Start the daemon once; it connects to Wayland, loads the model, and serves
+Start the server once; it connects to Wayland, loads the model, and serves
 requests on a Unix socket at `$XDG_RUNTIME_DIR/dictate.sock`:
 
 ```sh
-cargo run -- daemon ~/.local/share/models/parakeet-ultra-Q8_0.gguf
+cargo run -- serve ~/.local/share/models/parakeet-ultra-Q8_0.gguf
 ```
 
-Stop the daemon with Ctrl+C. Interrupting it while recording discards the
+Stop the server with Ctrl+C. Interrupting it while recording discards the
 recording.
 
 Running `dictate` with a missing or invalid argument prints the usage.
 
 ## Dictating
 
-With the daemon running, `start` begins recording from the default microphone
-and returns immediately. `stop` ends the recording, transcribes it, and types
-the text into the focused window:
+With the server running, `dictate ctl record` begins recording from the default
+microphone and returns immediately. `dictate ctl transcribe` ends the recording,
+transcribes it, and types the text into the focused window:
 
 ```sh
-dictate start
+dictate ctl record
 # ...speak...
-dictate stop
+dictate ctl transcribe
 ```
 
-`stop` returns only after the text has been typed. If typing fails, the
+`transcribe` returns only after the text has been typed. If typing fails, the
 transcript is included in the error on stderr.
 
-`start` fails if a recording is already in progress, and `stop` fails if none
-is. Audio is held in the daemon's memory until `stop`.
+`record` fails if a recording is already in progress, and `transcribe` fails if
+none is. Audio is held in the server's memory until `transcribe`.
 
 While recording, a small red dot appears in the top-right corner. It is
 drawn on a layer surface, so it does not take focus or receive clicks.
 
-`start` does not launch the daemon yet; run `dictate daemon <model>` first.
+`dictate ctl` does not launch the server yet; run `dictate serve <model>` first.
 
 ### Sway binding
 
 ```
-bindsym --release XF86Launch5 exec dictate stop
+bindsym --release XF86Launch5 exec dictate ctl transcribe
 ```
 
 ### How typing works
 
-The daemon creates one virtual keyboard when it starts. Its keymap assigns one
+The server creates one virtual keyboard when it starts. Its keymap assigns one
 key to each character in a fixed set: printable ASCII, Polish letters, and
 common punctuation. Most text needs no keymap change. Other characters trigger
 a keymap upload for that utterance, followed by a 10 ms pause so the focused
 client can apply it. Without that pause, the client drops the first key.
 
 Characters that cannot be typed, such as newlines, are skipped. Characters
-with no key are also skipped, and the daemon reports how many.
+with no key are also skipped, and the server reports how many.
 
 ## Checks
 
@@ -73,7 +73,7 @@ scripts/check.sh
 ```
 
 Runs `rustfmt`, `clippy`, the build, and the unit tests. Transcription is not
-covered by the checks; verify it by hand with `dictate start` and `dictate stop`.
+covered by the checks; verify it by hand with `dictate ctl record` and `dictate ctl transcribe`.
 
 The typing path needs a compositor. Its test is ignored by default:
 

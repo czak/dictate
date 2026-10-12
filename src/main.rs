@@ -1,15 +1,16 @@
 mod capture;
 mod cli;
-mod commands;
+mod ctl;
 mod indicator;
 mod keyboard;
 mod recorder;
+mod server;
 mod socket;
 mod wayland;
 
 use std::process::ExitCode;
 
-use cli::{Command, USAGE};
+use cli::{Action, Command, USAGE};
 
 fn main() -> ExitCode {
     let command = match cli::parse(std::env::args().skip(1)) {
@@ -20,9 +21,9 @@ fn main() -> ExitCode {
         }
     };
     let result = match &command {
-        Command::Daemon { model } => commands::daemon::run(model),
-        Command::Start => commands::start::run(),
-        Command::Stop => commands::stop::run(),
+        Command::Serve { model } => server::run(model),
+        Command::Ctl(Action::Record) => ctl::record(),
+        Command::Ctl(Action::Transcribe) => ctl::transcribe(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

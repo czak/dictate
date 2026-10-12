@@ -1,8 +1,8 @@
-//! Wayland client code. The rest of the daemon uses the types re-exported here
+//! Wayland client code. The rest of the server uses the types re-exported here
 //! and never touches protocol objects directly.
 //!
-//! One [`Wayland`] connection serves the whole daemon. It binds the globals the
-//! daemon needs and dispatches events for all of them.
+//! One [`Wayland`] connection serves the whole server. It binds the globals the
+//! server needs and dispatches events for all of them.
 
 mod overlay;
 mod shm;
@@ -25,7 +25,7 @@ pub use shm::ShmBuffer;
 pub use virtual_keyboard::VirtualKeyboard;
 
 /// A connection to the Wayland display. Cloning it gives another handle to the
-/// same connection. The daemon is single-threaded, so the handles share it with
+/// same connection. The server is single-threaded, so the handles share it with
 /// `Rc`.
 #[derive(Clone)]
 pub struct Wayland(Rc<RefCell<Inner>>);

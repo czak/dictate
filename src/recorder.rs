@@ -1,5 +1,5 @@
-//! Tracks whether a recording is in progress, so the daemon can reject
-//! out-of-order `start` and `stop` requests.
+//! Tracks whether a recording is in progress, so the server can reject
+//! out-of-order `record` and `transcribe` requests.
 
 use anyhow::{Context, Result, bail};
 

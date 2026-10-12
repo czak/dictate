@@ -1,6 +1,6 @@
 # dictate
 
-Records from the default PipeWire input, transcribes it with a local GGUF
+Records from the default input device, transcribes it with a local GGUF
 model supported by `transcribe-cpp`, and types the result into the focused
 window through the Wayland virtual keyboard protocol.
 

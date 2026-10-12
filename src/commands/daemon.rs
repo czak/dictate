@@ -73,7 +73,7 @@ fn handle(daemon: Daemon, request: Request) -> Result<Reply> {
     match request {
         Request::Start => {
             recorder.start(|| {
-                Capture::start().context("cannot record from PipeWire; is it running?")
+                Capture::start().context("cannot record from the default input device")
             })?;
             if let Some(indicator) = indicator
                 && let Err(err) = indicator.show()

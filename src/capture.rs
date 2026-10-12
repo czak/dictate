@@ -2,13 +2,13 @@ use std::sync::{Arc, Mutex};
 
 use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
-use cpal::{BufferSize, HostId, Stream, StreamConfig};
+use cpal::{BufferSize, Stream, StreamConfig};
 
 /// The only audio format the model accepts: mono, 16 kHz, f32 samples.
 const CHANNELS: u16 = 1;
 const SAMPLE_RATE: u32 = 16_000;
 
-/// An in-progress recording from the default PipeWire input device.
+/// An in-progress recording from the default input device.
 /// Dropping it without calling [`Capture::finish`] discards the audio.
 pub struct Capture {
     stream: Stream,
@@ -18,7 +18,7 @@ pub struct Capture {
 impl Capture {
     /// Starts recording mono 16 kHz f32 audio.
     pub fn start() -> Result<Self> {
-        let host = cpal::host_from_id(HostId::PipeWire)?;
+        let host = cpal::default_host();
         let device = host
             .default_input_device()
             .context("no default input device")?;

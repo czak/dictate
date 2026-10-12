@@ -9,13 +9,17 @@ mod wayland;
 
 use std::process::ExitCode;
 
-use clap::Parser;
-
-use cli::{Cli, Command};
+use cli::{Command, USAGE};
 
 fn main() -> ExitCode {
-    let cli = Cli::parse();
-    let result = match &cli.command {
+    let command = match cli::parse(std::env::args().skip(1)) {
+        Ok(command) => command,
+        Err(message) => {
+            eprintln!("dictate: {message}\n\n{USAGE}");
+            return ExitCode::from(2);
+        }
+    };
+    let result = match &command {
         Command::Daemon { model } => commands::daemon::run(model),
         Command::Start => commands::start::run(),
         Command::Stop => commands::stop::run(),

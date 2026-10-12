@@ -18,13 +18,13 @@ Start the daemon once; it connects to Wayland, loads the model, and serves
 requests on a Unix socket at `$XDG_RUNTIME_DIR/dictate.sock`:
 
 ```sh
-cargo run -- daemon --model ~/.local/share/models/parakeet-ultra-Q8_0.gguf
+cargo run -- daemon ~/.local/share/models/parakeet-ultra-Q8_0.gguf
 ```
 
 Stop the daemon with Ctrl+C. Interrupting it while recording discards the
 recording.
 
-Run `dictate --help` or `dictate <command> --help` for all options.
+Running `dictate` with a missing or invalid argument prints the usage.
 
 ## Dictating
 
@@ -47,7 +47,7 @@ is. Audio is held in the daemon's memory until `stop`.
 While recording, a small red dot appears in the top-right corner. It is
 drawn on a layer surface, so it does not take focus or receive clicks.
 
-`start` does not launch the daemon yet; run `dictate daemon` first.
+`start` does not launch the daemon yet; run `dictate daemon <model>` first.
 
 ### Sway binding
 

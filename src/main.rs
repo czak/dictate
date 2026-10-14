@@ -3,6 +3,7 @@ mod cli;
 mod ctl;
 mod indicator;
 mod keyboard;
+mod keymap;
 mod recorder;
 mod server;
 mod socket;

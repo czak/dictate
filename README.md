@@ -57,14 +57,19 @@ bindsym --release XF86Launch5 exec dictate ctl transcribe
 
 ### How typing works
 
-The server creates one virtual keyboard when it starts. Its keymap assigns one
-key to each character in a fixed set: printable ASCII, Polish letters, and
-common punctuation. Most text needs no keymap change. Other characters trigger
-a keymap upload for that utterance, followed by a 10 ms pause so the focused
-client can apply it. Without that pause, the client drops the first key.
+The server creates one virtual keyboard when it starts. It builds the keymap
+for a fixed XKB layout (`pl` for now) from the system's xkb data and uploads it
+to the virtual keyboard. Each character is typed with the key and modifiers that
+layout uses for it, so `ł` is typed the same way a Polish keyboard types it. The
+server does not read the seat's keyboard, so it works without a physical keyboard
+and with mouse-only input. A keymap upload is followed by a 10 ms pause so the
+focused client can apply it. Without that pause, the client drops the first key.
+
+Keys go to the focused window. If none has keyboard focus, the keys are dropped
+without an error.
 
 Characters that cannot be typed, such as newlines, are skipped. Characters
-with no key are also skipped, and the server reports how many.
+the layout has no key for are also skipped, and the server reports how many.
 
 ## Checks
 

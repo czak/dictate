@@ -13,13 +13,16 @@ use crate::recorder::Recorder;
 use crate::socket::{self, Reply, Request};
 use crate::wayland::Wayland;
 
+/// The XKB layout the virtual keyboard types with. Fixed for now.
+const LAYOUT: &str = "pl";
+
 /// Connects the virtual keyboard, loads the model, then serves requests until
 /// interrupted. Shows a recording indicator if the compositor supports it.
 ///
 /// Interrupting while recording discards the recording.
 pub fn run(model_path: &Path) -> Result<()> {
     let wayland = Wayland::connect()?;
-    let mut keyboard = Typist::new(&wayland)?;
+    let mut keyboard = Typist::new(&wayland, LAYOUT)?;
     let mut indicator = match RecordingIndicator::new(&wayland) {
         Ok(indicator) => Some(indicator),
         Err(err) => {

@@ -62,6 +62,13 @@ impl VirtualKeyboard {
             .key(time, code, wl_keyboard::KeyState::Released.into());
     }
 
+    /// Sets the modifiers held down for the following key events. `depressed`
+    /// is a bit mask of the keymap's modifiers, such as Shift. It replaces any
+    /// earlier value. Pass 0 to release them all.
+    pub fn modifiers(&self, depressed: u32) {
+        self.keyboard.modifiers(depressed, 0, 0, 0);
+    }
+
     /// Sends queued events and waits until the compositor has handled them.
     pub fn sync(&self) -> Result<()> {
         self.wl.roundtrip()

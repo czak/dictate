@@ -4,17 +4,12 @@
 //! depend on the seat's keyboard or on the compositor. For each character, the
 //! matching key and modifiers come from [`Keymap`].
 
-use std::thread;
-use std::time::Duration;
+mod keymap;
 
 use anyhow::Result;
 
-use crate::keymap::Keymap;
 use crate::wayland::{VirtualKeyboard, Wayland};
-
-/// Pause after a keymap upload so the focused client can apply it. Without it
-/// the client drops the first key.
-const SETTLE: Duration = Duration::from_millis(10);
+use keymap::Keymap;
 
 /// Flush and sync with the compositor this often while typing, so the socket
 /// buffer does not fill up on long text.
@@ -32,13 +27,12 @@ pub struct Typist {
 }
 
 impl Typist {
-    /// Creates the virtual keyboard and uploads the keymap for `layout`, an XKB
-    /// layout name such as `pl`.
+    /// Builds the keymap for `layout`, an XKB layout name such as `pl`, then
+    /// creates the virtual keyboard and uploads it.
     pub fn new(wl: &Wayland, layout: &str) -> Result<Self> {
-        let keyboard = VirtualKeyboard::new(wl)?;
         let keymap = Keymap::from_layout(layout)?;
+        let keyboard = VirtualKeyboard::new(wl)?;
         keyboard.set_keymap(keymap.text())?;
-        thread::sleep(SETTLE);
         Ok(Self { keyboard, keymap })
     }
 
@@ -53,14 +47,7 @@ impl Typist {
                 skipped += 1;
                 continue;
             };
-            // Set the modifiers only when needed, so plain keys send none.
-            if stroke.mods != 0 {
-                self.keyboard.modifiers(stroke.mods);
-            }
-            self.keyboard.tap(stroke.code);
-            if stroke.mods != 0 {
-                self.keyboard.modifiers(0);
-            }
+            self.keyboard.tap(stroke.code, stroke.mods);
             typed += 1;
             if typed % ROUNDTRIP_EVERY == 0 {
                 self.keyboard.sync()?;

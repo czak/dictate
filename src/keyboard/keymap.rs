@@ -18,7 +18,8 @@ pub struct Stroke {
     pub mods: u32,
 }
 
-/// A parsed keymap and the strokes that produce each character on it.
+/// A compiled keymap, its source text, and the strokes that produce each
+/// character on it.
 pub struct Keymap {
     text: String,
     strokes: HashMap<char, Stroke>,
@@ -43,12 +44,13 @@ impl Keymap {
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         )
         .with_context(|| format!("cannot build keymap for layout {layout:?}"))?;
-        Self::parse(keymap.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1))
+        let text = keymap.get_as_string(xkb::KEYMAP_FORMAT_TEXT_V1);
+        Ok(Self::index(&keymap, text))
     }
 
-    /// Compiles `text` and indexes every character it can produce. Where a
-    /// character can be typed in more than one way, the stroke with the fewest
-    /// modifiers wins.
+    /// Compiles the XKB source `text` and indexes every character it can
+    /// produce.
+    #[cfg(test)]
     pub fn parse(text: String) -> Result<Self> {
         let context = xkb::Context::new(xkb::CONTEXT_NO_FLAGS);
         let keymap = xkb::Keymap::new_from_string(
@@ -58,9 +60,24 @@ impl Keymap {
             xkb::KEYMAP_COMPILE_NO_FLAGS,
         )
         .context("cannot compile keymap")?;
+        Ok(Self::index(&keymap, text))
+    }
 
+    /// The keymap source this was built from.
+    pub fn text(&self) -> &str {
+        &self.text
+    }
+
+    /// The stroke that types `c`, or `None` if the keymap cannot produce it.
+    pub fn stroke(&self, c: char) -> Option<Stroke> {
+        self.strokes.get(&c).copied()
+    }
+
+    /// Indexes the strokes of a compiled `keymap` whose source is `text`.
+    /// Where a character can be typed in more than one way, the stroke with the
+    /// fewest modifiers wins.
+    fn index(keymap: &xkb::Keymap, text: String) -> Self {
         let mut strokes: HashMap<char, Stroke> = HashMap::new();
-        let mut candidates = Vec::new();
         for raw in keymap.min_keycode().raw()..=keymap.max_keycode().raw() {
             let key = xkb::Keycode::new(raw);
             // Layout 0 is the one the virtual keyboard uses, since no group is set.
@@ -87,31 +104,18 @@ impl Keymap {
                     if c.is_control() {
                         continue;
                     }
-                    candidates.push((c, stroke));
+                    strokes
+                        .entry(c)
+                        .and_modify(|best| {
+                            if stroke.mods.count_ones() < best.mods.count_ones() {
+                                *best = stroke;
+                            }
+                        })
+                        .or_insert(stroke);
                 }
             }
         }
-        for (c, stroke) in candidates {
-            strokes
-                .entry(c)
-                .and_modify(|best| {
-                    if stroke.mods.count_ones() < best.mods.count_ones() {
-                        *best = stroke;
-                    }
-                })
-                .or_insert(stroke);
-        }
-        Ok(Self { text, strokes })
-    }
-
-    /// The keymap source this was parsed from.
-    pub fn text(&self) -> &str {
-        &self.text
-    }
-
-    /// The stroke that types `c`, or `None` if the keymap cannot produce it.
-    pub fn stroke(&self, c: char) -> Option<Stroke> {
-        self.strokes.get(&c).copied()
+        Self { text, strokes }
     }
 }
 

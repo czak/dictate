@@ -1,10 +1,10 @@
+mod actions;
 mod capture;
 mod cli;
+mod commands;
 mod ctl;
 mod indicator;
 mod keyboard;
-mod keymap;
-mod recorder;
 mod server;
 mod socket;
 mod wayland;
@@ -22,7 +22,7 @@ fn main() -> ExitCode {
         }
     };
     let result = match &command {
-        Command::Serve { model } => server::run(model),
+        Command::Serve { model } => commands::serve::run(model),
         Command::Ctl(Action::Record) => ctl::record(),
         Command::Ctl(Action::Transcribe) => ctl::transcribe(),
     };

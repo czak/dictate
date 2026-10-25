@@ -4,7 +4,8 @@
 use std::fs::File;
 use std::io::Write;
 use std::os::fd::AsFd;
-use std::time::Instant;
+use std::thread;
+use std::time::{Duration, Instant};
 
 use anyhow::Result;
 use rustix::fs::{MemfdFlags, memfd_create};
@@ -12,6 +13,10 @@ use wayland_client::protocol::wl_keyboard;
 use wayland_protocols_misc::zwp_virtual_keyboard_v1::client::zwp_virtual_keyboard_v1::ZwpVirtualKeyboardV1;
 
 use super::Wayland;
+
+/// Pause after a keymap upload so the focused client can apply it. Without it
+/// the client drops the first key.
+const SETTLE: Duration = Duration::from_millis(10);
 
 pub struct VirtualKeyboard {
     wl: Wayland,
@@ -32,8 +37,8 @@ impl VirtualKeyboard {
         })
     }
 
-    /// Replaces the keymap with the XKB source `xkb` and waits until the
-    /// compositor has it. The client may still need a moment to apply it.
+    /// Replaces the keymap with the XKB source `xkb`, waits until the compositor
+    /// has it, then pauses so the focused client can apply it.
     pub fn set_keymap(&self, xkb: &str) -> Result<()> {
         let mut bytes = xkb.as_bytes().to_vec();
         bytes.push(0);
@@ -49,24 +54,25 @@ impl VirtualKeyboard {
         // The file must stay open until the compositor has received the fd.
         self.wl.roundtrip()?;
         drop(file);
+        thread::sleep(SETTLE);
         Ok(())
     }
 
-    /// Presses and releases the key `code`, an evdev code under the current
-    /// keymap. The events are queued until the next [`sync`](Self::sync).
-    pub fn tap(&self, code: u32) {
+    /// Presses and releases `code`, an evdev code under the current keymap,
+    /// with the modifier mask `mods` held down. The events are queued until the
+    /// next [`sync`](Self::sync).
+    pub fn tap(&self, code: u32, mods: u32) {
         let time = self.start.elapsed().as_millis() as u32;
+        if mods != 0 {
+            self.keyboard.modifiers(mods, 0, 0, 0);
+        }
         self.keyboard
             .key(time, code, wl_keyboard::KeyState::Pressed.into());
         self.keyboard
             .key(time, code, wl_keyboard::KeyState::Released.into());
-    }
-
-    /// Sets the modifiers held down for the following key events. `depressed`
-    /// is a bit mask of the keymap's modifiers, such as Shift. It replaces any
-    /// earlier value. Pass 0 to release them all.
-    pub fn modifiers(&self, depressed: u32) {
-        self.keyboard.modifiers(depressed, 0, 0, 0);
+        if mods != 0 {
+            self.keyboard.modifiers(0, 0, 0, 0);
+        }
     }
 
     /// Sends queued events and waits until the compositor has handled them.

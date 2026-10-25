@@ -5,44 +5,36 @@ use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Stream, StreamConfig};
 
 /// The only audio format the model accepts: mono, 16 kHz, f32 samples.
-const CHANNELS: u16 = 1;
-const SAMPLE_RATE: u32 = 16_000;
+const CONFIG: StreamConfig = StreamConfig {
+    channels: 1,
+    sample_rate: 16_000,
+    buffer_size: BufferSize::Default,
+};
 
-/// An in-progress recording from the default input device.
-/// Dropping it without calling [`Capture::finish`] discards the audio.
-pub struct Capture {
-    stream: Stream,
-    samples: Arc<Mutex<Vec<f32>>>,
+/// An in-progress recording. Dropping it without calling [`finish`] discards the audio.
+pub type Recording = (Stream, Arc<Mutex<Vec<f32>>>);
+
+/// Starts recording mono 16 kHz f32 audio from the default input device.
+pub fn start() -> Result<Recording> {
+    let host = cpal::default_host();
+    let device = host
+        .default_input_device()
+        .context("no default input device")?;
+
+    let samples = Arc::new(Mutex::new(Vec::new()));
+    let sink = Arc::clone(&samples);
+    let stream = device.build_input_stream::<f32, _, _>(
+        CONFIG,
+        move |data: &[f32], _| sink.lock().unwrap().extend_from_slice(data),
+        |err| eprintln!("stream error: {err}"),
+        None,
+    )?;
+    stream.play()?;
+    Ok((stream, samples))
 }
 
-impl Capture {
-    /// Starts recording mono 16 kHz f32 audio.
-    pub fn start() -> Result<Self> {
-        let host = cpal::default_host();
-        let device = host
-            .default_input_device()
-            .context("no default input device")?;
-        let config = StreamConfig {
-            channels: CHANNELS,
-            sample_rate: SAMPLE_RATE,
-            buffer_size: BufferSize::Default,
-        };
-
-        let samples = Arc::new(Mutex::new(Vec::new()));
-        let sink = Arc::clone(&samples);
-        let stream = device.build_input_stream::<f32, _, _>(
-            config,
-            move |data: &[f32], _| sink.lock().unwrap().extend_from_slice(data),
-            |err| eprintln!("stream error: {err}"),
-            None,
-        )?;
-        stream.play()?;
-        Ok(Self { stream, samples })
-    }
-
-    /// Stops recording and returns everything captured.
-    pub fn finish(self) -> Vec<f32> {
-        drop(self.stream);
-        std::mem::take(&mut *self.samples.lock().unwrap())
-    }
+/// Stops recording and returns everything captured.
+pub fn finish((stream, samples): Recording) -> Vec<f32> {
+    drop(stream);
+    std::mem::take(&mut *samples.lock().unwrap())
 }

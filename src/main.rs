@@ -11,7 +11,7 @@ mod wayland;
 
 use std::process::ExitCode;
 
-use cli::{Action, Command, USAGE};
+use cli::{Command, USAGE};
 
 fn main() -> ExitCode {
     let command = match cli::parse(std::env::args().skip(1)) {
@@ -23,8 +23,8 @@ fn main() -> ExitCode {
     };
     let result = match &command {
         Command::Serve { model } => commands::serve::run(model),
-        Command::Ctl(Action::Record) => ctl::record(),
-        Command::Ctl(Action::Transcribe) => ctl::transcribe(),
+        Command::Record => ctl::record(),
+        Command::Transcribe => ctl::transcribe(),
     };
     match result {
         Ok(()) => ExitCode::SUCCESS,

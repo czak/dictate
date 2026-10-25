@@ -5,22 +5,17 @@ Local speech-to-text using a GGUF model supported by transcribe.cpp.
 
 Usage:
   dictate serve <MODEL>         Load the model and serve requests on the socket
-  dictate ctl record            Start recording from the default microphone
-  dictate ctl transcribe        Stop recording, transcribe, and type the text";
+  dictate record                Start recording from the default microphone
+  dictate transcribe            Stop recording, transcribe, and type the text";
 
 #[derive(Debug, PartialEq, Eq)]
 pub enum Command {
     /// Load the model and serve requests on the socket.
     Serve { model: PathBuf },
 
-    /// Send an action to a running server.
-    Ctl(Action),
-}
-
-#[derive(Debug, PartialEq, Eq)]
-pub enum Action {
     /// Start recording from the default microphone.
     Record,
+
     /// Stop recording, transcribe it, and type the text.
     Transcribe,
 }
@@ -43,7 +38,8 @@ where
                 model: existing_file(model)?,
             }
         }
-        "ctl" => Command::Ctl(ctl_action(args.next())?),
+        "record" => Command::Record,
+        "transcribe" => Command::Transcribe,
         _ => return Err(format!("unknown command: {name}")),
     };
 
@@ -52,14 +48,6 @@ where
     }
 
     Ok(command)
-}
-
-fn ctl_action(action: Option<String>) -> Result<Action, String> {
-    match action.as_deref() {
-        Some("record") => Ok(Action::Record),
-        Some("transcribe") => Ok(Action::Transcribe),
-        _ => Err("ctl: expected record or transcribe".into()),
-    }
 }
 
 fn existing_file(raw: String) -> Result<PathBuf, String> {
@@ -75,7 +63,7 @@ fn existing_file(raw: String) -> Result<PathBuf, String> {
 mod tests {
     use std::path::PathBuf;
 
-    use super::{Action, Command, parse};
+    use super::{Command, parse};
 
     fn run(args: &[&str]) -> Result<Command, String> {
         parse(args.iter().map(|arg| arg.to_string()))
@@ -89,12 +77,9 @@ mod tests {
     }
 
     #[test]
-    fn ctl_record_and_transcribe() {
-        assert_eq!(run(&["ctl", "record"]), Ok(Command::Ctl(Action::Record)));
-        assert_eq!(
-            run(&["ctl", "transcribe"]),
-            Ok(Command::Ctl(Action::Transcribe))
-        );
+    fn record_and_transcribe() {
+        assert_eq!(run(&["record"]), Ok(Command::Record));
+        assert_eq!(run(&["transcribe"]), Ok(Command::Transcribe));
     }
 
     #[test]
@@ -115,20 +100,8 @@ mod tests {
 
     #[test]
     fn unknown_command_is_an_error() {
-        assert_eq!(run(&["record"]), Err("unknown command: record".into()));
+        assert_eq!(run(&["recrod"]), Err("unknown command: recrod".into()));
         assert_eq!(run(&["--help"]), Err("unknown command: --help".into()));
-    }
-
-    #[test]
-    fn ctl_without_known_action_is_an_error() {
-        assert_eq!(
-            run(&["ctl"]),
-            Err("ctl: expected record or transcribe".into())
-        );
-        assert_eq!(
-            run(&["ctl", "start"]),
-            Err("ctl: expected record or transcribe".into())
-        );
     }
 
     #[test]
@@ -148,7 +121,7 @@ mod tests {
     fn extra_arguments_are_rejected() {
         let model = model_path();
         assert_eq!(
-            run(&["ctl", "record", "now"]),
+            run(&["record", "now"]),
             Err("unexpected argument: now".into())
         );
         assert_eq!(
@@ -156,7 +129,7 @@ mod tests {
             Err("unexpected argument: extra".into())
         );
         assert_eq!(
-            run(&["ctl", "transcribe", "-h"]),
+            run(&["transcribe", "-h"]),
             Err("unexpected argument: -h".into())
         );
     }

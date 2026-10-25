@@ -28,14 +28,14 @@ Running `dictate` with a missing or invalid argument prints the usage.
 
 ## Dictating
 
-With the server running, `dictate ctl record` begins recording from the default
-microphone and returns immediately. `dictate ctl transcribe` ends the recording,
+With the server running, `dictate record` begins recording from the default
+microphone and returns immediately. `dictate transcribe` ends the recording,
 transcribes it, and types the text into the focused window:
 
 ```sh
-dictate ctl record
+dictate record
 # ...speak...
-dictate ctl transcribe
+dictate transcribe
 ```
 
 `transcribe` returns only after the text has been typed. If typing fails, the
@@ -47,12 +47,13 @@ none is. Audio is held in the server's memory until `transcribe`.
 While recording, a small red dot appears in the top-right corner. It is
 drawn on a layer surface, so it does not take focus or receive clicks.
 
-`dictate ctl` does not launch the server yet; run `dictate serve <model>` first.
+`dictate record` and `dictate transcribe` do not launch the server yet; run
+`dictate serve <model>` first.
 
 ### Sway binding
 
 ```
-bindsym --release XF86Launch5 exec dictate ctl transcribe
+bindsym --release XF86Launch5 exec dictate transcribe
 ```
 
 ### How typing works
@@ -78,7 +79,7 @@ scripts/check.sh
 ```
 
 Runs `rustfmt`, `clippy`, the build, and the unit tests. Transcription is not
-covered by the checks; verify it by hand with `dictate ctl record` and `dictate ctl transcribe`.
+covered by the checks; verify it by hand with `dictate record` and `dictate transcribe`.
 
 The typing path needs a compositor. Its test is ignored by default:
 

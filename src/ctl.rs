@@ -1,4 +1,5 @@
-//! Client for `dictate ctl`: sends one request to the server and reports the outcome.
+//! Client for `dictate record` and `dictate transcribe`: sends one request to the
+//! server and reports the outcome.
 
 use anyhow::{Result, bail};
 

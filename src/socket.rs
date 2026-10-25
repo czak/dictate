@@ -1,4 +1,5 @@
-//! Wire protocol shared by `dictate ctl` (client) and `dictate serve` (server).
+//! Wire protocol shared by the client commands (`dictate record` and
+//! `dictate transcribe`) and `dictate serve`.
 //!
 //! Each message is one line of JSON. A client sends a [`Request`] and the server
 //! answers with a [`Reply`], then closes the connection.

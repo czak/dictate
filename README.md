@@ -14,9 +14,11 @@ Runs on Wayland and expects the protocols:
 - `zwp_virtual_keyboard_manager_v1` for the typing
 - `zwlr_layer_shell_v1` for the recording indicator
 
-Tested on Sway.
+Tested on Sway and Hyprland.
 
 ## Usage
+
+Download one of the [supported GGUF models](https://github.com/handy-computer/transcribe.cpp#transcribecpp), and pass it to `dictate serve`.
 
 The `serve` process loads the given model, does the recording and handles the Wayland connection.
 
@@ -38,24 +40,22 @@ Stop recording, transcribe, and immediately type the text into the active window
 dictate transcribe
 ```
 
-You probably want to bind them to keys in your desktop environment, for example:
+You probably want to bind them to keys in your desktop, for example:
 
 ### Push-to-talk on Sway
 
-Hold the key to record, release it to transcribe:
+Hold the key to record, release to transcribe:
 
 ```
 bindsym XF86AudioRecord exec dictate record
 bindsym --release XF86AudioRecord exec dictate transcribe
 ```
 
-### Push-to-talk on Hyprland
+### Or Hyprland
 
-Hold the key to record, release it to transcribe:
-
-```
-bind = , XF86AudioRecord, exec, dictate record
-bindr = , XF86AudioRecord, exec, dictate transcribe
+```lua
+hl.bind("XF86AudioRecord", hl.dsp.exec_cmd("dictate record"))
+hl.bind("XF86AudioRecord", hl.dsp.exec_cmd("dictate transcribe"), { release = true })
 ```
 
 ## How to build
@@ -64,9 +64,9 @@ bindr = , XF86AudioRecord, exec, dictate transcribe
 cargo build --release
 ```
 
-## Current limitations
+## Current restrictions
 
-- I have good results with the `vulkan` backend, so that is currently enabled. If you don't like that, just revert to:
+- I have good results with the `vulkan` backend, so it is currently enabled. If you don't like that, just revert to:
 
   ```diff
   -transcribe-cpp = { version = "0.3.1", features = ["vulkan"] }

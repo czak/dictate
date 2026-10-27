@@ -1,91 +1,80 @@
 # dictate
 
-Records from the default input device, transcribes it with a local GGUF
-model supported by `transcribe-cpp`, and types the result into the focused
-window through the Wayland virtual keyboard protocol.
+<img src="assets/icon.svg" width="96" align="right" alt="Icon">
+
+Super simple dictation for Linux.
+
+1. Talk to your microphone
+2. Transcribe locally using [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)
+3. Have text appear in active window
 
 ## Requirements
 
-- A Wayland compositor that offers `zwp_virtual_keyboard_manager_v1`
-  (Sway and other wlroots compositors do).
-- Only the first `wl_seat` is used. Multi-seat setups are not supported.
-- For the recording indicator, a compositor that offers `zwlr_layer_shell_v1`.
-  Without it the server still works but shows no indicator.
+Runs on Wayland and expects the protocols:
+- `zwp_virtual_keyboard_manager_v1` for the typing
+- `zwlr_layer_shell_v1` for the recording indicator
+
+Tested on Sway.
 
 ## Usage
 
-Start the server once; it connects to Wayland, loads the model, and serves
-requests on a Unix socket at `$XDG_RUNTIME_DIR/dictate.sock`:
+The `serve` process loads the given model, does the recording and handles the Wayland connection.
 
 ```sh
-cargo run -- serve ~/.local/share/models/parakeet-ultra-Q8_0.gguf
+dictate serve ~/.local/share/models/parakeet-unified-en-0.6b-Q8_0.gguf
 ```
 
-Stop the server with Ctrl+C. Interrupting it while recording discards the
-recording.
+Then use `record` and `transcribe` to start and stop recording, respectively.
 
-Running `dictate` with a missing or invalid argument prints the usage.
-
-## Dictating
-
-With the server running, `dictate record` begins recording from the default
-microphone and returns immediately. `dictate transcribe` ends the recording,
-transcribes it, and types the text into the focused window:
+Begin recording from the default input:
 
 ```sh
 dictate record
-# ...speak...
+```
+
+Stop recording, transcribe, and immediately type the text into the active window:
+
+```sh
 dictate transcribe
 ```
 
-`transcribe` returns only after the text has been typed. If typing fails, the
-transcript is included in the error on stderr.
+You probably want to bind them to keys in your desktop environment, for example:
 
-`record` fails if a recording is already in progress, and `transcribe` fails if
-none is. Audio is held in the server's memory until `transcribe`.
+### Push-to-talk on Sway
 
-While recording, a small red dot appears in the top-right corner. It is
-drawn on a layer surface, so it does not take focus or receive clicks.
-
-`dictate record` and `dictate transcribe` do not launch the server yet; run
-`dictate serve <model>` first.
-
-### Sway binding
+Hold the key to record, release it to transcribe:
 
 ```
-bindsym --release XF86Launch5 exec dictate transcribe
+bindsym XF86AudioRecord exec dictate record
+bindsym --release XF86AudioRecord exec dictate transcribe
 ```
 
-### How typing works
+### Push-to-talk on Hyprland
 
-The server creates one virtual keyboard when it starts. It builds the keymap
-for a fixed XKB layout (`pl` for now) from the system's xkb data and uploads it
-to the virtual keyboard. Each character is typed with the key and modifiers that
-layout uses for it, so `ł` is typed the same way a Polish keyboard types it. The
-server does not read the seat's keyboard, so it works without a physical keyboard
-and with mouse-only input. A keymap upload is followed by a 10 ms pause so the
-focused client can apply it. Without that pause, the client drops the first key.
+Hold the key to record, release it to transcribe:
 
-Keys go to the focused window. If none has keyboard focus, the keys are dropped
-without an error.
+```
+bind = , XF86AudioRecord, exec, dictate record
+bindr = , XF86AudioRecord, exec, dictate transcribe
+```
 
-Characters that cannot be typed, such as newlines, are skipped. Characters
-the layout has no key for are also skipped, and the server reports how many.
-
-## Checks
+## How to build
 
 ```sh
-scripts/check.sh
+cargo build --release
 ```
 
-Runs `rustfmt`, `clippy`, the build, and the unit tests. Transcription is not
-covered by the checks; verify it by hand with `dictate record` and `dictate transcribe`.
+## Current limitations
 
-The typing path needs a compositor. Its test is ignored by default:
+- I have good results with the `vulkan` backend, so that is currently enabled. If you don't like that, just revert to:
 
-```sh
-DICTATE_TEST_TEXT="Zażółć gęślą" cargo test -- --include-ignored types_into_focused_window
-```
+  ```diff
+  -transcribe-cpp = { version = "0.3.1", features = ["vulkan"] }
+  +transcribe-cpp = "0.3.1"
+  ```
+- The keyboard logic mimics actual keyboard layout and is currently hardcoded to `pl`. Chromium did not like made up keymaps.
 
-Run it only against a private headless compositor, never against your desktop
-session, because it types into whatever window is focused.
+## (Maybe) to do
+
+- [ ] Language hint for multi-language models (something like `dictate transcribe <lang>`).
+- [ ] Vocabulary (will depend on model support in transcribe.cpp)

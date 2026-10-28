@@ -1,6 +1,6 @@
 # dictate
 
-<img src="assets/icon.svg" width="130" align="right" alt="Icon">
+<img width="128" alt="icon" align="right" src="https://github.com/user-attachments/assets/cee8f0f3-6ce5-459c-b924-e47dff1dd751" />
 
 Super simple dictation for Linux.
 

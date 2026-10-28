@@ -4,6 +4,7 @@ use std::process;
 
 use anyhow::{Context, Result, bail};
 
+use crate::log;
 use crate::socket::{self, Reply, Request};
 
 /// Binds the socket and answers each request with `dispatch`. A failing
@@ -19,7 +20,7 @@ pub fn serve(mut dispatch: impl FnMut(Request) -> Result<()>) -> Result<()> {
         }
     })?;
 
-    eprintln!("listening on {}", socket_path.display());
+    log::info!("Listening on {}", socket_path.display());
     // Failed connections are logged and do not stop the loop.
     for stream in listener.incoming() {
         match stream {
@@ -29,7 +30,7 @@ pub fn serve(mut dispatch: impl FnMut(Request) -> Result<()>) -> Result<()> {
                     Ok(Some(request)) => request,
                     Ok(None) => continue,
                     Err(err) => {
-                        eprintln!("request failed: {err:#}");
+                        log::warning!("Request failed: {err:#}");
                         continue;
                     }
                 };
@@ -38,10 +39,10 @@ pub fn serve(mut dispatch: impl FnMut(Request) -> Result<()>) -> Result<()> {
                     Err(err) => Reply::Error(format!("{err:#}")),
                 };
                 if let Err(err) = socket::write_message(&stream, &reply) {
-                    eprintln!("request failed: {err:#}");
+                    log::warning!("Request failed: {err:#}");
                 }
             }
-            Err(err) => eprintln!("accept failed: {err}"),
+            Err(err) => log::err!("Accept failed: {err}"),
         }
     }
     Ok(())

@@ -4,6 +4,8 @@ use anyhow::{Context, Result};
 use cpal::traits::{DeviceTrait, HostTrait, StreamTrait};
 use cpal::{BufferSize, Stream, StreamConfig};
 
+use crate::log;
+
 /// The only audio format the model accepts: mono, 16 kHz, f32 samples.
 const CONFIG: StreamConfig = StreamConfig {
     channels: 1,
@@ -26,11 +28,16 @@ pub fn start() -> Result<Recording> {
     let stream = device.build_input_stream::<f32, _, _>(
         CONFIG,
         move |data: &[f32], _| sink.lock().unwrap().extend_from_slice(data),
-        |err| eprintln!("stream error: {err}"),
+        |err| log::err!("Stream error: {err}"),
         None,
     )?;
     stream.play()?;
     Ok((stream, samples))
+}
+
+/// Length in seconds of `samples` captured samples.
+pub fn duration_secs(samples: usize) -> f64 {
+    samples as f64 / f64::from(CONFIG.sample_rate)
 }
 
 /// Stops recording and returns everything captured.

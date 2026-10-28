@@ -5,6 +5,7 @@ mod commands;
 mod ctl;
 mod indicator;
 mod keyboard;
+mod log;
 mod server;
 mod socket;
 mod wayland;
@@ -29,7 +30,7 @@ fn main() -> ExitCode {
     match result {
         Ok(()) => ExitCode::SUCCESS,
         Err(err) => {
-            eprintln!("{err:#}");
+            log::err!("{err:#}");
             ExitCode::FAILURE
         }
     }

@@ -5,14 +5,11 @@ use anyhow::Result;
 
 use crate::wayland::{Anchor, OverlaySpec, OverlaySurface, ShmBuffer, Wayland};
 
-/// Edge length of the square buffer, in pixels.
 const SIZE: u32 = 32;
-/// Radius of the red disc, in pixels.
 const RADIUS: f32 = 11.0;
-/// Distance from the top-right corner of the output.
 const MARGIN: i32 = 16;
-/// Disc colour, `#e01b24`.
 const RED: [f32; 3] = [224.0, 27.0, 36.0];
+const OPACITY: f32 = 0.5;
 
 const SPEC: OverlaySpec = OverlaySpec {
     width: SIZE,
@@ -72,7 +69,7 @@ fn disc_pixels(size: u32, radius: f32) -> Vec<u8> {
             let dx = x as f32 + 0.5 - centre;
             let dy = y as f32 + 0.5 - centre;
             let distance = (dx * dx + dy * dy).sqrt();
-            let alpha = (radius - distance + 0.5).clamp(0.0, 1.0);
+            let alpha = (radius - distance + 0.5).clamp(0.0, 1.0) * OPACITY;
             pixels.push((RED[2] * alpha) as u8);
             pixels.push((RED[1] * alpha) as u8);
             pixels.push((RED[0] * alpha) as u8);
@@ -91,10 +88,10 @@ mod tests {
     }
 
     #[test]
-    fn disc_is_opaque_at_centre_and_clear_in_corners() {
+    fn disc_is_translucent_at_centre_and_clear_in_corners() {
         let pixels = disc_pixels(SIZE, RADIUS);
         assert_eq!(pixels.len(), (SIZE * SIZE * 4) as usize);
-        assert_eq!(alpha_at(&pixels, SIZE / 2, SIZE / 2), 255);
+        assert_eq!(alpha_at(&pixels, SIZE / 2, SIZE / 2), 127);
         assert_eq!(alpha_at(&pixels, 0, 0), 0);
         assert_eq!(alpha_at(&pixels, SIZE - 1, SIZE - 1), 0);
     }
@@ -104,7 +101,7 @@ mod tests {
         let pixels = disc_pixels(SIZE, RADIUS);
         let i = ((SIZE / 2 * SIZE + SIZE / 2) * 4) as usize;
         // Little-endian ARGB8888 is stored as B, G, R, A.
-        assert_eq!(&pixels[i..i + 4], &[0x24, 0x1b, 0xe0, 0xff]);
+        assert_eq!(&pixels[i..i + 4], &[0x12, 0x0d, 0x70, 0x7f]);
     }
 
     /// Shows and hides the indicator on a real compositor. Use a private

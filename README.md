@@ -8,6 +8,10 @@ Super simple dictation for Linux.
 2. Transcribe locally using [transcribe.cpp](https://github.com/handy-computer/transcribe.cpp)
 3. Have text appear in active window
 
+## Demo (turn on sound 🔉)
+
+https://github.com/user-attachments/assets/abb4f405-1ed5-4f63-a173-0a680b466a5b
+
 ## Requirements
 
 Runs on Wayland and expects the protocols:
